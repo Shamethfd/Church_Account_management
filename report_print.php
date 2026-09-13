@@ -8,40 +8,47 @@ $stm = $pdo->prepare('SELECT * FROM monthly_accounts WHERE id = ?');
 $stm->execute([$id]);
 $acc = $stm->fetch();
 if (!$acc) { http_response_code(404); echo 'Not found'; exit; }
+$user = current_user();
+if (!is_admin()) {
+  if (array_key_exists('service', $acc) && isset($user['service']) && $acc['service'] !== $user['service']) {
+    http_response_code(403);
+    echo 'Access denied';
+    exit;
+  }
+}
 $wstm = $pdo->prepare('SELECT * FROM weekly_collections WHERE account_id = ? ORDER BY week ASC');
 $wstm->execute([$id]);
 $weeks = $wstm->fetchAll();
-?><!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Monthly Account Report</title>
-  <link rel="stylesheet" href="assets/css/styles.css">
-  <style>
-    .report h2 { margin: 0; text-align:center; }
-    .report h3 { margin: 8px 0; text-align:center; font-weight: 500; }
-    .signatures { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 16px; }
-    .signatures div { border-top: 1px solid #94a3b8; padding-top: 6px; }
-  </style>
-</head>
+$months = [1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'];
+$period = ($months[(int)$acc['month']] ?? $acc['month']) . ' ' . $acc['year'];
+$pageTitle = 'Monthly Account Report';
+$includeAppJs = false;
+require __DIR__ . '/includes/head.php';
+?>
 <body>
   <div class="print-page">
     <div class="report">
-      <h2>COLOMBO CITY MISSION CIRCUIT</h2>
-      <h3>Monthly Account Package</h3>
-      <p><strong>Month:</strong> <?= htmlspecialchars($acc['month']) ?>, <strong>Year:</strong> <?= htmlspecialchars($acc['year']) ?>, <strong>Day of Service:</strong> <?= htmlspecialchars($acc['service_day']) ?></p>
+      <p class="page-kicker" style="text-align:center">Official record</p>
+      <h1 class="page-title" style="text-align:center;margin-bottom:4px">Colombo City Mission Circuit</h1>
+      <h2 style="text-align:center;margin:0 0 16px;font-size:22px">Monthly Account Package — <?= htmlspecialchars($period) ?></h2>
+      <div class="meta-grid" style="margin-bottom:18px">
+        <div class="meta-item"><span>Day of service</span><strong><?= htmlspecialchars($acc['service_day']) ?></strong></div>
+        <?php if (array_key_exists('service', $acc)): ?>
+        <div class="meta-item"><span>Service</span><strong><?= htmlspecialchars($acc['service']) ?></strong></div>
+        <?php endif; ?>
+        <div class="meta-item"><span>Year</span><strong><?= htmlspecialchars((string)$acc['year']) ?></strong></div>
+      </div>
 
       <table class="table">
         <thead>
           <tr>
             <th>Week</th>
             <th>Date</th>
-            <th>Collection Amount (Rs.)</th>
-            <th>Other Offerings</th>
-            <th>Thanks Offering</th>
-            <th>Christian Service</th>
-            <th>Monthly Offering</th>
+            <th class="num">Collection Amount (Rs.)</th>
+            <th class="num">Other Offerings</th>
+            <th class="num">Thanks Offering</th>
+            <th class="num">Christian Service</th>
+            <th class="num">Monthly Offering</th>
           </tr>
         </thead>
         <tbody>
@@ -49,47 +56,51 @@ $weeks = $wstm->fetchAll();
           <tr>
             <td><?= (int)$w['week'] ?></td>
             <td><?= htmlspecialchars($w['service_date'] ?? '') ?></td>
-            <td><?= number_format((float)$w['collection_amount'], 2) ?></td>
-            <td><?= number_format((float)$w['other_offerings'], 2) ?></td>
-            <td><?= number_format((float)$w['thanks_offering'], 2) ?></td>
-            <td><?= number_format((float)$w['christian_service'], 2) ?></td>
-            <td><?= number_format((float)$w['monthly_offering'], 2) ?></td>
+            <td class="num"><?= number_format((float)$w['collection_amount'], 2) ?></td>
+            <td class="num"><?= number_format((float)$w['other_offerings'], 2) ?></td>
+            <td class="num"><?= number_format((float)$w['thanks_offering'], 2) ?></td>
+            <td class="num"><?= number_format((float)$w['christian_service'], 2) ?></td>
+            <td class="num"><?= number_format((float)$w['monthly_offering'], 2) ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
 
-      <h3>Summary</h3>
-      <p><strong>Total Collection:</strong> Rs. <?= number_format((float)$acc['total_collection'], 2) ?></p>
-      <p><strong>Bank Deposit:</strong> Rs. <?= number_format((float)$acc['bank_deposit'], 2) ?></p>
-      <p><strong>Bank Slip Ref:</strong> <?= htmlspecialchars($acc['bank_slip_no'] ?? '') ?></p>
+      <h3 style="margin-top:22px">Summary</h3>
+      <div class="meta-grid">
+        <div class="meta-item"><span>Total collection</span><strong>Rs. <?= number_format((float)$acc['total_collection'], 2) ?></strong></div>
+        <div class="meta-item"><span>Bank deposit</span><strong>Rs. <?= number_format((float)$acc['bank_deposit'], 2) ?></strong></div>
+        <div class="meta-item"><span>Bank slip ref</span><strong><?= htmlspecialchars($acc['bank_slip_no'] ?? '') ?></strong></div>
+      </div>
 
-      <h3>Certification & Signatures</h3>
-      <div class="signatures">
-        <div>
-          <div><strong>Prepared by (Treasurer):</strong> <?= htmlspecialchars($acc['prepared_by'] ?? '') ?></div>
-          <div>Date: <?= htmlspecialchars($acc['prepared_date'] ?? '') ?></div>
+      <h3 style="margin-top:22px">Certification &amp; signatures</h3>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <span>Prepared by (Treasurer)</span>
+          <strong><?= htmlspecialchars($acc['prepared_by'] ?? '') ?></strong>
+          <p class="hint">Date: <?= htmlspecialchars($acc['prepared_date'] ?? '') ?></p>
         </div>
-        <div>
-          <div><strong>Verified by (Circuit Steward):</strong> <?= htmlspecialchars($acc['verified_by'] ?? '') ?></div>
-          <div>Date: <?= htmlspecialchars($acc['verified_date'] ?? '') ?></div>
+        <div class="meta-item">
+          <span>Verified by (Circuit Steward)</span>
+          <strong><?= htmlspecialchars($acc['verified_by'] ?? '') ?></strong>
+          <p class="hint">Date: <?= htmlspecialchars($acc['verified_date'] ?? '') ?></p>
         </div>
-        <div>
-          <div><strong>Approved by:</strong> <?= htmlspecialchars($acc['approved_name'] ?? '') ?></div>
-          <div>Date: <?= htmlspecialchars($acc['approved_date'] ?? '') ?></div>
+        <div class="meta-item">
+          <span>Approved by</span>
+          <strong><?= htmlspecialchars($acc['approved_name'] ?? '') ?></strong>
+          <p class="hint">Date: <?= htmlspecialchars($acc['approved_date'] ?? '') ?></p>
         </div>
       </div>
 
-      <div style="margin-top:16px;">
-        <strong>Church Seal:</strong>
-        <div class="seal-box"></div>
+      <div style="margin-top:20px;">
+        <strong>Church seal</strong>
+        <div class="seal-box" style="margin-top:8px">Official seal</div>
       </div>
 
-      <div class="no-print" style="margin-top:16px; display:flex; gap:8px;">
-        <button onclick="window.print()">Print</button>
-        <a class="btn secondary" href="account_view.php?id=<?= (int)$acc['id'] ?>">Back</a>
+      <div class="no-print form-actions" style="justify-content:flex-start">
+        <button class="btn btn-primary" type="button" onclick="window.print()">Print</button>
+        <a class="btn btn-secondary" href="account_view.php?id=<?= (int)$acc['id'] ?>">Back</a>
       </div>
     </div>
   </div>
-</body>
-</html>
+<?php require __DIR__ . '/includes/footer.php'; ?>

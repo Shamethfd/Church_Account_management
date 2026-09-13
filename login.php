@@ -1,48 +1,70 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
+
+$alreadyIn = current_user();
 $error = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $email = trim($_POST['email'] ?? '');
+  if ($alreadyIn) {
+    header('Location: dashboard.php');
+    exit;
+  }
+  $number = trim($_POST['number'] ?? '');
   $password = $_POST['password'] ?? '';
-  if (!$email || !$password) {
-    $error = 'Email and password are required';
-  } else if (attempt_login($email, $password)) {
+  if ($number === '' || $password === '') {
+    $error = 'Enter your number and password.';
+  } else if (attempt_login($number, $password)) {
     header('Location: dashboard.php');
     exit;
   } else {
-    $error = 'Invalid credentials';
+    $error = 'Those details are not correct. Try again.';
   }
 }
-?><!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login - CCMC Accounts</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="assets/css/styles.css">
-</head>
-<body class="min-h-screen bg-slate-50 text-slate-800">
-  <?php include __DIR__ . '/header.php'; ?>
-  <div class="container max-w-6xl mx-auto px-4">
-    <div class="card max-w-md mx-auto mt-10 rounded-xl border bg-white p-6 shadow-sm">
-      <h2 class="text-xl font-semibold mb-2">Login</h2>
-      <?php if ($error): ?><div class="alert error mb-3 rounded-md border text-sm bg-red-50 border-red-200 text-red-800 py-2 px-3"><?= htmlspecialchars($error) ?></div><?php endif; ?>
-      <form method="post" autocomplete="off" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Email</label>
-          <input class="mt-1 w-full rounded-lg border-slate-300 focus:border-slate-400 focus:ring-slate-400" type="email" name="email" required>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Password</label>
-          <input class="mt-1 w-full rounded-lg border-slate-300 focus:border-slate-400 focus:ring-slate-400" type="password" name="password" required>
-        </div>
-        <div class="footer-actions flex justify-end">
-          <button class="px-4 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-800 text-sm" type="submit">Sign In</button>
-        </div>
-      </form>
-      <p class="subtitle text-slate-600 text-sm mt-4">Contact the Treasurer to get an account.</p>
-    </div>
-  </div>
-</body>
-</html>
+
+$pageTitle = 'Sign in - CCMC Accounts';
+$includeAppJs = false;
+require __DIR__ . '/includes/head.php';
+?>
+<body class="auth-body">
+  <main class="auth">
+    <section class="auth-side">
+      <div>
+        <div class="brand-mark">CC</div>
+        <p class="page-kicker">Colombo City Mission Circuit</p>
+        <h1>Monthly Account Management</h1>
+        <p>Sign in to record collections, print monthly packages, and keep family records in one place.</p>
+      </div>
+    </section>
+    <section class="auth-main">
+      <div class="auth-card">
+        <h2>Sign in</h2>
+        <p class="page-lede">Use your admin username or member number.</p>
+
+        <?php if ($alreadyIn && $_SERVER['REQUEST_METHOD'] !== 'POST'): ?>
+          <div class="alert success">
+            You are already signed in as <strong><?= htmlspecialchars($alreadyIn['name'] ?? 'User') ?></strong>.
+          </div>
+          <div class="form-actions" style="justify-content:flex-start">
+            <a class="btn btn-primary" href="dashboard.php">Continue to dashboard</a>
+            <a class="btn btn-secondary" href="logout.php">Sign out</a>
+          </div>
+        <?php else: ?>
+          <?php if ($error): ?><div class="alert error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+          <form method="post" action="login.php" autocomplete="off">
+            <div class="field">
+              <label for="number">Number / username</label>
+              <input id="number" type="text" name="number" required autofocus>
+            </div>
+            <div class="field">
+              <label for="password">Password</label>
+              <input id="password" type="password" name="password" required>
+            </div>
+            <div class="form-actions" style="justify-content:flex-start">
+              <button class="btn btn-primary" type="submit">Sign in</button>
+            </div>
+          </form>
+        <?php endif; ?>
+      </div>
+    </section>
+  </main>
+<?php require __DIR__ . '/includes/footer.php'; ?>

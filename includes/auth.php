@@ -24,16 +24,38 @@ function require_admin() {
     }
 }
 
-function attempt_login($email, $password) {
+function attempt_login($usernameOrNumber, $password) {
     global $pdo;
-    $stmt = $pdo->prepare('SELECT id, name, email, role, password FROM users WHERE email = ? LIMIT 1');
-    $stmt->execute([$email]);
-    $user = $stmt->fetch();
-    if ($user && password_verify($password, $user['password'])) {
-        unset($user['password']);
-        $_SESSION['user'] = $user;
+    // 1) Hardcoded admin
+    if ($usernameOrNumber === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
+        session_regenerate_id(true);
+        $_SESSION['user'] = [
+            'id' => 0,
+            'name' => 'Administrator',
+            'role' => 'admin'
+        ];
         return true;
     }
+
+    // 2) App users table (number-based login)
+    try {
+        $stmt = $pdo->prepare('SELECT id, name, number, service, password FROM app_users WHERE number = ? LIMIT 1');
+        $stmt->execute([$usernameOrNumber]);
+        $row = $stmt->fetch();
+        if ($row && password_verify($password, $row['password'])) {
+            session_regenerate_id(true);
+            $_SESSION['user'] = [
+                'id' => (int)$row['id'],
+                'name' => $row['name'],
+                'role' => 'user',
+                'service' => $row['service']
+            ];
+            return true;
+        }
+    } catch (Throwable $e) {
+        // ignore and fall through
+    }
+
     return false;
 }
 
@@ -41,9 +63,9 @@ function logout() {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();
-        setcookie(session_name(), '', time() - 42000,
-            $params['path'], $params['domain'], $params['secure'], $params['httponly']
-        );
+        setcookie(session_name(), '', time() - 42000, $params['path'] ?: '/', $params['domain'] ?: '', (bool)$params['secure'], (bool)$params['httponly']);
     }
-    session_destroy();
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_destroy();
+    }
 }

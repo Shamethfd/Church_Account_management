@@ -25,11 +25,21 @@ try {
     exit;
 }
 
+define('ADMIN_USERNAME', 'admin');
+define('ADMIN_PASSWORD', 'admin123');
+
 function base_url() {
-    // Simple base URL calculator for links
-    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (int)($_SERVER['SERVER_PORT'] ?? 80) === 443;
     $proto = $https ? 'https://' : 'http://';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+    $path = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+    $path = rtrim($path, '/');
+    if ($path === '.' || $path === '/') {
+        $path = '';
+    }
     return $proto . $host . $path;
+}
+
+function asset_url($path) {
+    return rtrim(base_url(), '/') . '/' . ltrim($path, '/');
 }

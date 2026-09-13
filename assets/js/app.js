@@ -6,8 +6,7 @@ function recalcTotals() {
     for (const f of fields) {
       const el = document.querySelector(`[data-week="${w}"][name$="[${f}]"]`);
       if (!el) continue;
-      const val = parseFloat(el.value) || 0;
-      rowSum += val;
+      rowSum += parseFloat(el.value) || 0;
     }
     const out = document.querySelector(`#week_${w}_sum`);
     if (out) out.textContent = rowSum.toFixed(2);
@@ -23,4 +22,13 @@ document.addEventListener('input', (e) => {
   }
 });
 
-document.addEventListener('DOMContentLoaded', recalcTotals);
+document.addEventListener('DOMContentLoaded', () => {
+  recalcTotals();
+  const layout = document.querySelector('.layout');
+  const toggle = document.querySelector('[data-nav-toggle]');
+  if (layout && toggle) {
+    toggle.addEventListener('click', () => {
+      layout.classList.toggle('is-open');
+    });
+  }
+});
